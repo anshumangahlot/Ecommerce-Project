@@ -1,0 +1,107 @@
+CommerceCore AI
+
+FUNCTIONAL REQUIREMENTS
+
+1.  User Management
+
+-   Users should be able to register.
+-   Users should be able to log in securely.
+-   The system should authenticate users using JWT.
+-   The system should support role-based access (Admin/User).
+
+2.  Product Management
+
+-   Admin can add new products.
+-   Admin can update product details.
+-   Admin can delete products.
+-   Users can view all available products.
+-   Users can search for products by name.
+-   Users can view detailed product information.
+-   Products should maintain stock information.
+
+3.  Shopping Cart
+
+-   Users can add products to their cart.
+-   Users can update product quantities.
+-   Users can remove products from the cart.
+-   Users can view their cart.
+-   The system should calculate the total cart value.
+
+4.  Order Management
+
+-   Users can place orders.
+-   The system should generate an order record.
+-   Product stock should be updated after a successful order.
+-   Users can view their order history.
+-   Admin can view all customer orders.
+
+5.  AI Feature
+
+-   Admin can generate AI-powered product descriptions using
+    Gemini/OpenAI.
+-   The generated description can be saved as the product description.
+-   AI responses should be returned through a REST endpoint.
+
+6.  API Features
+
+-   The system should expose RESTful APIs.
+-   APIs should return JSON responses.
+-   APIs should return appropriate HTTP status codes.
+-   Invalid requests should return meaningful error messages.
+
+NON-FUNCTIONAL REQUIREMENTS
+
+1.  Performance
+
+-   API responses should be fast for standard CRUD operations.
+-   Product retrieval should be optimized using database indexing where
+    appropriate.
+
+2.  Security
+
+-   Passwords must be encrypted using BCrypt.
+-   Authentication should use JWT tokens.
+-   Protected endpoints should require a valid JWT.
+-   Admin-only APIs should be accessible only to administrators.
+
+3.  Scalability
+
+-   The architecture should support adding new modules such as Wishlist,
+    Reviews, or Payments.
+-   The database should be designed for future expansion.
+
+4.  Maintainability
+
+-   Follow the Controller–Service–Repository architecture.
+-   Keep code modular and well organized.
+-   Separate business logic from controllers.
+
+5.  Reliability
+
+-   Handle exceptions using a global exception handler.
+-   Maintain data consistency during order placement using transactions.
+
+6.  Usability
+
+-   Document APIs using Swagger/OpenAPI.
+-   APIs should be easy to test using Postman.
+-   JSON request and response formats should remain consistent.
+
+7.  Availability
+
+-   The backend should be deployable to a cloud platform (e.g., Render
+    or Railway).
+-   The application should support continuous operation under normal
+    conditions.
+
+8.  Database Integrity
+
+-   Enforce primary and foreign key constraints.
+-   Prevent negative product stock.
+-   Allow order placement only for authenticated users.
+-   Validate all user inputs before persistence.
+
+FUTURE ENHANCEMENTS - AI Shopping Assistant - AI-powered product
+recommendations - Product reviews and ratings - Wishlist - Payment
+gateway integration - Email notifications - Redis caching - Docker
+deployment - CI/CD pipeline
