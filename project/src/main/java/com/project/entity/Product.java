@@ -1,6 +1,7 @@
 package com.project.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -13,19 +14,26 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message="Product name cannot be empty")
+    @Size(max = 255, message = "Product name cannot exceed 255 characters")
     @Column(nullable = false)
     private String name;
 
+    @Size(max = 1000, message = "Description is too long")
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @NotNull(message = "Price is required")
+    @Positive(message = "Price must be greater than zero")
     @Column (nullable = false)
     private BigDecimal price;
 
+    @NotNull(message = "Stock quantity is required")
+    @Min(value = 0, message = "Stock cannot be negative")
     @Column(nullable = false)
     private Integer stock;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
