@@ -1,7 +1,8 @@
 package com.project.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -15,15 +16,32 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 public class Order {
-    
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotNull(message="An order must belong to a user")
+    @ManyToOne
+    @JoinColumn(name="user_id", nullable = false)
     private User user;
 
+    @Column(name="order_date",nullable = false)
     private LocalDateTime orderDate;
 
+    @NotNull(message="Order status is required")
+    @Column(nullable = false)
     private String status;
 
+    @NotNull(message="Total amount is required")
+    @Column(name="total_amount",nullable = false)
     private BigDecimal totalAmount;
 
+    @PrePersist
+    protected void onCreate(){
+        this.orderDate= LocalDateTime.now();
+        if(this.status==null){
+            this.status="PENDING";
+        }
+    }
 }
