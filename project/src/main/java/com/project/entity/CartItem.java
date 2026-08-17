@@ -1,5 +1,6 @@
 package com.project.entity;
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -21,7 +22,7 @@ public class CartItem {
 
     @ManyToOne
     @JoinColumn(name="cart_id", nullable = false)
-    @JsonBackReference
+    @JsonIgnore
     private Cart cart;
 
     @ManyToOne
