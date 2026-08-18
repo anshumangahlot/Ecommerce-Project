@@ -71,6 +71,28 @@ public class SecurityConfig {
                                 "/api/auth/**"
                         ).permitAll()
 
+                        // Admin-only product operations
+                        .requestMatchers(
+                                org.springframework.http.HttpMethod.POST,
+                                "/api/products/**"
+                        ).hasRole("ADMIN")
+
+                        .requestMatchers(
+                                org.springframework.http.HttpMethod.PUT,
+                                "/api/products/**"
+                        ).hasRole("ADMIN")
+
+                        .requestMatchers(
+                                org.springframework.http.HttpMethod.DELETE,
+                                "/api/products/**"
+                        ).hasRole("ADMIN")
+
+                        // Product viewing
+                        .requestMatchers(
+                                org.springframework.http.HttpMethod.GET,
+                                "/api/products/**"
+                        ).hasAnyRole("USER", "ADMIN")
+
                         // Everything else requires authentication
                         .anyRequest().authenticated()
                 )
