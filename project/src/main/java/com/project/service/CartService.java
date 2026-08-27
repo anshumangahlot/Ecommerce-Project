@@ -13,6 +13,9 @@ import com.project.repository.CartRepository;
 import com.project.repository.ProductRepository;
 import com.project.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -28,11 +31,11 @@ public class CartService {
 
 
     public CartResponse addToCart(
-            Long userId,
+            String email,
             Long productId,
             Integer quantity) {
 
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "User not found"
@@ -96,9 +99,9 @@ public class CartService {
         return convertToCartResponse(cart);
     }
 
-    public CartResponse getCart(Long userId) {
+    public CartResponse getCart(String email) {
 
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "User not found"
@@ -134,6 +137,13 @@ public class CartService {
             );
         }
 
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+
+        if(!cartItem.getCart().getUser().getEmail().equals(email)){
+            throw new BadRequestException("you are not allowed to modify this cart item");
+        }
+
         Product product = cartItem.getProduct();
 
         if (quantity > product.getStock()) {
@@ -161,6 +171,15 @@ public class CartService {
                                 "Cart item not found"
                         )
                 );
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+
+        if (!cartItem.getCart().getUser().getEmail().equals(email)) {
+            throw new BadRequestException(
+                    "You are not allowed to remove this cart item"
+            );
+        }
 
         cartItemRepository.delete(cartItem);
     }

@@ -1,6 +1,7 @@
 package com.project.controller;
 
 import com.project.dto.CartResponse;
+import com.project.security.SecurityUtility;
 import com.project.service.CartService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,21 +20,24 @@ public class CartController {
             @RequestParam Long productId,
             @RequestParam Integer quantity) {
 
+        String email = SecurityUtility.getCurrentUserEmail();
+
         return ResponseEntity.ok(
                 cartService.addToCart(
-                        userId,
+                        email,
                         productId,
                         quantity
                 )
         );
     }
 
-    @GetMapping("/{userId}")
+    @GetMapping
     public ResponseEntity<CartResponse> getCart(
             @PathVariable Long userId) {
+        String email = SecurityUtility.getCurrentUserEmail();
 
         return ResponseEntity.ok(
-                cartService.getCart(userId)
+                cartService.getCart(email)
         );
     }
 
