@@ -1,5 +1,6 @@
 package com.project.controller;
 
+import com.project.dto.OrderResponse;
 import com.project.entity.Order;
 import com.project.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -16,17 +17,17 @@ public class OrderController {
     private final OrderService orderService;
 
     @PostMapping("/{userId}")
-    public ResponseEntity<Order> placeOrder(@PathVariable Long userId) {
+    public ResponseEntity<OrderResponse> placeOrder(@PathVariable Long userId) {
         return ResponseEntity.ok(orderService.placeOrder(userId));
     }
 
     @GetMapping("/{orderId}")
-    public ResponseEntity<Order> getOrderById(@PathVariable Long orderId) {
+    public ResponseEntity<OrderResponse> getOrderById(@PathVariable Long orderId) {
         return ResponseEntity.ok(orderService.getOrderById(orderId));
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Order>> getUserOrders(@PathVariable Long userId) {
+    public ResponseEntity<List<OrderResponse>> getUserOrders(@PathVariable Long userId) {
         return ResponseEntity.ok(orderService.getUserOrders(userId));
     }
 }

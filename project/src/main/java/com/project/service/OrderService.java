@@ -1,11 +1,15 @@
 package com.project.service;
 
+import com.project.dto.OrderItemResponse;
+import com.project.dto.OrderResponse;
 import com.project.entity.Cart;
 import com.project.entity.CartItem;
 import com.project.entity.Order;
 import com.project.entity.OrderItem;
 import com.project.entity.Product;
 import com.project.entity.User;
+import com.project.exception.BadRequestException;
+import com.project.exception.ResourceNotFoundException;
 import com.project.repository.CartRepository;
 import com.project.repository.OrderRepository;
 import com.project.repository.ProductRepository;
@@ -28,19 +32,19 @@ public class OrderService {
     private final ProductRepository productRepository;
 
     @Transactional
-    public Order placeOrder(Long userId) {
+    public OrderResponse placeOrder(Long userId) {
 
         // 1. Find user
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         // 2. Find user's cart
         Cart cart = cartRepository.findByUser(user)
-                .orElseThrow(() -> new RuntimeException("Cart not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Cart not found"));
 
         // 3. Check cart is not empty
         if (cart.getItems() == null || cart.getItems().isEmpty()) {
-            throw new RuntimeException("Cannot place order with an empty cart");
+            throw new BadRequestException("Cannot place order with an empty cart");
         }
 
         // 4. Create Order
@@ -58,7 +62,7 @@ public class OrderService {
 
             // 6. Check stock
             if (product.getStock() < cartItem.getQuantity()) {
-                throw new RuntimeException(
+                throw new BadRequestException(
                         "Insufficient stock for product: " + product.getName()
                 );
             }
@@ -100,23 +104,55 @@ public class OrderService {
         cart.getItems().clear();
         cartRepository.save(cart);
 
-        return savedOrder;
+        return convertToOrderResponse(savedOrder);
     }
 
 
-    public Order getOrderById(Long orderId) {
-        return orderRepository.findById(orderId)
+    public OrderResponse getOrderById(Long orderId) {
+        Order order=  orderRepository.findById(orderId)
                 .orElseThrow(() ->
                         new RuntimeException("Order not found with id: " + orderId)
                 );
+        return convertToOrderResponse(order);
     }
 
 
-    public List<Order> getUserOrders(Long userId) {
+    public List<OrderResponse> getUserOrders(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() ->
                         new RuntimeException("User not found with id: " + userId)
                 );
-        return orderRepository.findByUser(user);
+        return orderRepository.findByUser(user)
+                .stream().map(this::convertToOrderResponse)
+                .toList();
+    }
+
+    private OrderItemResponse convertToOrderItemResponse(OrderItem orderItem) {
+        OrderItemResponse response = new OrderItemResponse();
+
+        response.setId(orderItem.getId());
+        response.setProductId(orderItem.getProduct().getId());
+        response.setQuantity(orderItem.getQuantity());
+        response.setPrice(orderItem.getPrice());
+
+        return response;
+    }
+
+    private OrderResponse convertToOrderResponse(Order order) {
+        OrderResponse response = new OrderResponse();
+
+        response.setOrderId(order.getId());
+        response.setUserId(order.getUser().getId());
+        response.setOrderDate(order.getOrderDate());
+        response.setStatus(order.getStatus());
+        response.setTotalAmount(order.getTotalAmount());
+
+        List<OrderItemResponse> items = order.getItems()
+                .stream()
+                .map(this::convertToOrderItemResponse)
+                .toList();
+
+        response.setItems(items);
+        return response;
     }
 }
