@@ -1,7 +1,6 @@
 package com.project.controller;
 
 import com.project.dto.OrderResponse;
-import com.project.entity.Order;
 import com.project.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,9 +15,9 @@ public class OrderController {
 
     private final OrderService orderService;
 
-    @PostMapping("/{userId}")
-    public ResponseEntity<OrderResponse> placeOrder(@PathVariable Long userId) {
-        return ResponseEntity.ok(orderService.placeOrder(userId));
+    @PostMapping
+    public ResponseEntity<OrderResponse> placeOrder() {
+        return ResponseEntity.ok(orderService.placeOrder());
     }
 
     @GetMapping("/{orderId}")
@@ -26,8 +25,8 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getOrderById(orderId));
     }
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<OrderResponse>> getUserOrders(@PathVariable Long userId) {
-        return ResponseEntity.ok(orderService.getUserOrders(userId));
+    @GetMapping("/my-orders")
+    public ResponseEntity<List<OrderResponse>> getMyOrders() {
+        return ResponseEntity.ok(orderService.getMyOrders());
     }
 }

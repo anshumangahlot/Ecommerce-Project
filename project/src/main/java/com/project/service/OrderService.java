@@ -15,6 +15,8 @@ import com.project.repository.OrderRepository;
 import com.project.repository.ProductRepository;
 import com.project.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,11 +34,10 @@ public class OrderService {
     private final ProductRepository productRepository;
 
     @Transactional
-    public OrderResponse placeOrder(Long userId) {
+    public OrderResponse placeOrder() {
 
         // 1. Find user
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user = getAuthenticatedUser();
 
         // 2. Find user's cart
         Cart cart = cartRepository.findByUser(user)
@@ -50,7 +51,7 @@ public class OrderService {
         // 4. Create Order
         Order order = new Order();
         order.setUser(user);
-        order.setOrderDate(LocalDateTime.now());
+//        order.setOrderDate(LocalDateTime.now());
         order.setStatus("CONFIRMED");
 
         BigDecimal totalAmount = BigDecimal.ZERO;
@@ -109,23 +110,52 @@ public class OrderService {
 
 
     public OrderResponse getOrderById(Long orderId) {
+        User user = getAuthenticatedUser();
         Order order=  orderRepository.findById(orderId)
                 .orElseThrow(() ->
-                        new RuntimeException("Order not found with id: " + orderId)
+                        new ResourceNotFoundException("Order not found with id: " + orderId)
                 );
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new BadRequestException(
+                    "You are not allowed to access this order"
+            );
+        }
+
         return convertToOrderResponse(order);
     }
 
-
-    public List<OrderResponse> getUserOrders(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new RuntimeException("User not found with id: " + userId)
-                );
+    public List<OrderResponse> getMyOrders() {
+        User user = getAuthenticatedUser();
         return orderRepository.findByUser(user)
-                .stream().map(this::convertToOrderResponse)
+                .stream()
+                .map(this::convertToOrderResponse)
                 .toList();
     }
+
+    private User getAuthenticatedUser() {
+        Authentication authentication = SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+        String email = authentication.getName();
+
+        return userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Authenticated user not found"
+                        )
+                );
+    }
+
+//    public List<OrderResponse> getUserOrders(Long userId) {
+//        User user = userRepository.findById(userId)
+//                .orElseThrow(() ->
+//                        new RuntimeException("User not found with id: " + userId)
+//                );
+//        return orderRepository.findByUser(user)
+//                .stream().map(this::convertToOrderResponse)
+//                .toList();
+//    }
 
     private OrderItemResponse convertToOrderItemResponse(OrderItem orderItem) {
         OrderItemResponse response = new OrderItemResponse();

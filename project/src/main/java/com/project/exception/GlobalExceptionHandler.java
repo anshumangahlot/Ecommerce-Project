@@ -17,7 +17,7 @@ public class GlobalExceptionHandler {
         Map<String,Object> response = new HashMap<>();
 
         response.put("timestamp", LocalDateTime.now());
-        response.put("status:", 404);
+        response.put("status", 404);
         response.put("error","Resource Not Found");
         response.put("message",ex.getMessage());
 

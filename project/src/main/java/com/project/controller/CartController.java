@@ -16,7 +16,6 @@ public class CartController {
 
     @PostMapping("/items")
     public ResponseEntity<CartResponse> addToCart(
-            @RequestParam Long userId,
             @RequestParam Long productId,
             @RequestParam Integer quantity) {
 
@@ -32,8 +31,7 @@ public class CartController {
     }
 
     @GetMapping
-    public ResponseEntity<CartResponse> getCart(
-            @PathVariable Long userId) {
+    public ResponseEntity<CartResponse> getCart() {
         String email = SecurityUtility.getCurrentUserEmail();
 
         return ResponseEntity.ok(
