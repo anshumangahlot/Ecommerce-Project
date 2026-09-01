@@ -46,7 +46,7 @@ public class Order {
     protected void onCreate(){
         this.orderDate= LocalDateTime.now();
         if(this.status==null){
-            this.status="PENDING";
+            this.status=OrderStatus.PENDING;
         }
     }
 }
