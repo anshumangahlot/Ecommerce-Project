@@ -2,12 +2,7 @@ package com.project.service;
 
 import com.project.dto.OrderItemResponse;
 import com.project.dto.OrderResponse;
-import com.project.entity.Cart;
-import com.project.entity.CartItem;
-import com.project.entity.Order;
-import com.project.entity.OrderItem;
-import com.project.entity.Product;
-import com.project.entity.User;
+import com.project.entity.*;
 import com.project.exception.BadRequestException;
 import com.project.exception.ResourceNotFoundException;
 import com.project.repository.CartRepository;
@@ -23,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+
+import com.project.entity.OrderStatus;
 
 @Service
 @RequiredArgsConstructor
@@ -52,7 +49,7 @@ public class OrderService {
         Order order = new Order();
         order.setUser(user);
 //        order.setOrderDate(LocalDateTime.now());
-        order.setStatus("CONFIRMED");
+        order.setStatus(OrderStatus.CONFIRMED);
 
         BigDecimal totalAmount = BigDecimal.ZERO;
 
@@ -185,4 +182,71 @@ public class OrderService {
         response.setItems(items);
         return response;
     }
+
+    @Transactional
+    public OrderResponse cancelOrder(Long orderId){
+        User user = getAuthenticatedUser();
+
+        Order order = orderRepository.findById(orderId).orElseThrow(
+                ()-> new ResourceNotFoundException(
+                        "Order not found with id:"+orderId
+                        )
+        );
+
+        if(!order.getUser().getId().equals(user.getId())){
+            throw new BadRequestException(
+              "you are not allowed to cancel this order"
+            );
+        }
+
+        if(order.getStatus()!=OrderStatus.PENDING &&
+                order.getStatus()!=OrderStatus.CONFIRMED){
+            throw new BadRequestException("order cannot be cancelled at this stage");
+        }
+
+        for (OrderItem orderItem : order.getItems()) {
+            Product product = orderItem.getProduct();
+            product.setStock(
+                    product.getStock() + orderItem.getQuantity()
+            );
+
+            productRepository.save(product);
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
+        Order savedOrder= orderRepository.save(order);
+        return convertToOrderResponse(savedOrder);
+    }
+
+    @Transactional
+    public OrderResponse requestReturn(Long orderId) {
+        User user = getAuthenticatedUser();
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Order not found with id: " + orderId
+                        )
+                );
+
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new BadRequestException(
+                    "You are not allowed to return this order"
+            );
+        }
+
+        if (order.getStatus() != OrderStatus.DELIVERED) {
+            throw new BadRequestException(
+                    "Only delivered orders can be returned"
+            );
+        }
+
+        order.setStatus(OrderStatus.RETURN_REQUESTED);
+        Order savedOrder = orderRepository.save(order);
+
+        return convertToOrderResponse(savedOrder);
+    }
+
+
 }
+

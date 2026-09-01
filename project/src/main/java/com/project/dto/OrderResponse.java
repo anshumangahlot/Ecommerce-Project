@@ -1,5 +1,6 @@
 package com.project.dto;
 
+import com.project.entity.OrderStatus;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -14,6 +15,6 @@ public class OrderResponse {
     private Long userId;
     private List<OrderItemResponse> items;
     private LocalDateTime orderDate;
-    private String status;
+    private OrderStatus status;
     private BigDecimal totalAmount;
 }

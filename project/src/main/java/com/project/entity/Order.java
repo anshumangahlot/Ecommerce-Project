@@ -34,9 +34,9 @@ public class Order {
     @Column(name="order_date",nullable = false)
     private LocalDateTime orderDate;
 
-    @NotNull(message="Order status is required")
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status;
+    private OrderStatus status;
 
     @NotNull(message="Total amount is required")
     @Column(name="total_amount",nullable = false)
