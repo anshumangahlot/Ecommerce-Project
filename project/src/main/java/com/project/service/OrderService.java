@@ -247,6 +247,36 @@ public class OrderService {
         return convertToOrderResponse(savedOrder);
     }
 
+    @Transactional
+    public OrderResponse approveReturn(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Order not found with id: " + orderId
+                        )
+                );
 
+        if (order.getStatus() != OrderStatus.RETURN_REQUESTED) {
+            throw new BadRequestException(
+                    "Order is not eligible for return approval"
+            );
+        }
+
+        order.setStatus(OrderStatus.RETURNED);
+
+        // Restore stock
+        for (OrderItem orderItem : order.getItems()) {
+            Product product = orderItem.getProduct();
+
+            product.setStock(
+                    product.getStock() + orderItem.getQuantity()
+            );
+
+            productRepository.save(product);
+        }
+
+        Order savedOrder = orderRepository.save(order);
+        return convertToOrderResponse(savedOrder);
+    }
 }
 

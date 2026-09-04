@@ -4,6 +4,7 @@ import com.project.dto.OrderResponse;
 import com.project.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -35,5 +36,9 @@ public class OrderController {
         return ResponseEntity.ok(orderService.cancelOrder(orderId));
     }
 
-
+    @PutMapping("/{orderId}/approve-return")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<OrderResponse> approveReturn(@PathVariable Long orderId){
+        return ResponseEntity.ok(orderService.approveReturn(orderId));
+    }
 }
