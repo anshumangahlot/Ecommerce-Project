@@ -1,403 +1,452 @@
 # E-Commerce Backend API
 
-A RESTful e-commerce backend built using **Java, Spring Boot, Spring Data JPA, Spring Security, JWT, and PostgreSQL**. The project follows a layered **Controller → Service → Repository** architecture and implements user authentication, product management, shopping cart functionality, and order processing.
+A secure RESTful e-commerce backend built with **Java, Spring Boot, Spring Security, JWT, Spring Data JPA/Hibernate, and PostgreSQL**.
 
-## 🚀 Features
+## Features
 
-### 🔐 Authentication & Security
 - User registration and login
 - JWT-based stateless authentication
-- Spring Security integration
 - BCrypt password hashing
-- Role-based users (`USER`, `ADMIN`)
-- Protected REST endpoints
-- JWT validation through a custom authentication filter
-- Configurable token expiration
+- USER and ADMIN role-based authorization
+- Product CRUD operations
+- Shopping cart management
+- Authenticated-user ownership checks
+- DTO-based API responses
+- Bean Validation
+- Centralized exception handling
+- Transactional checkout
+- Inventory/stock validation and deduction
+- Purchase-time price snapshots
+- Order history
+- Order cancellation with stock restoration
+- Return requests for delivered orders
+- ADMIN approval of return requests
+- Stock restoration after approved returns
+- PostgreSQL persistence
+- Postman API testing
 
-### 📦 Product Management
-- Create and retrieve products
-- Product price and stock management
-- Product description support
-- Automatic creation and update timestamps
-- Database-level stock validation
-
-### 🛒 Shopping Cart
-- Add products to cart
-- View user's cart
-- Update cart item quantities
-- Remove items from cart
-- Automatic cart creation
-- Product existence and quantity validation
-
-### 🧾 Order Processing
-- Place orders directly from the shopping cart
-- Create orders and order items
-- Calculate order totals
-- Store product price at the time of purchase
-- Update product inventory after purchase
-- Automatically clear the cart after successful checkout
-- Transactional order processing using `@Transactional`
-
-## 🏗️ Architecture
-
-```text
-Client
-  │
-  ▼
-Controller → Service → Repository → Hibernate/JPA → PostgreSQL
-```
-
-### Security Flow
-
-```text
-Client
-   │ Authorization: Bearer <JWT>
-   ▼
-JwtAuthenticationFilter
-   ▼
-JwtService
-   ├── Validate Signature
-   ├── Check Expiration
-   └── Extract User Email
-   ▼
-CustomUserDetailsService
-   ▼
-UserRepository
-   ▼
-SecurityContext
-   ▼
-Protected Controller
-```
-
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Technology | Purpose |
 |---|---|
-| **Java 23** | Programming language |
-| **Spring Boot 4** | Backend framework |
-| **Spring MVC** | REST API development |
-| **Spring Data JPA** | Database persistence |
-| **Hibernate** | ORM |
-| **Spring Security** | Authentication & authorization |
-| **JWT** | Stateless authentication |
-| **BCrypt** | Password hashing |
-| **PostgreSQL** | Relational database |
-| **Maven** | Dependency management |
-| **Lombok** | Boilerplate reduction |
-| **Postman** | API testing |
+| Java | Backend programming language |
+| Spring Boot | Application framework |
+| Spring Web | REST API development |
+| Spring Security | Authentication and authorization |
+| JWT | Stateless authentication |
+| BCrypt | Password hashing |
+| Spring Data JPA | Database access |
+| Hibernate | ORM |
+| PostgreSQL | Relational database |
+| Lombok | Boilerplate reduction |
+| Maven | Build and dependency management |
+| Postman | API testing |
 
-## 📂 Project Structure
+## Architecture
 
 ```text
-src/main/java/com/project/
-├── config/
+Client / Postman
+      |
+      v
+Controller Layer
+      |
+      v
+Service Layer
+      |
+      v
+Repository Layer
+      |
+      v
+JPA / Hibernate
+      |
+      v
+PostgreSQL
+```
+
+## Authentication
+
+The application uses Spring Security with JWT and stateless sessions.
+
+```text
+Register / Login
+      |
+      v
+AuthenticationManager
+      |
+      v
+UserDetailsService
+      |
+      v
+BCrypt password verification
+      |
+      v
+JWT generated
+      |
+      v
+Authorization: Bearer <JWT>
+      |
+      v
+JwtAuthenticationFilter
+      |
+      v
+SecurityContext
+```
+
+Protected requests use:
+
+```http
+Authorization: Bearer <JWT_TOKEN>
+```
+
+## Roles
+
+### USER
+
+Can view products, manage their cart, place orders, view their orders, cancel eligible orders, and request returns for delivered orders.
+
+### ADMIN
+
+Can manage products and approve return requests.
+
+## Main Entities
+
+```text
+User
+ ├── 1 : 1 ── Cart
+ │              └── 1 : N ── CartItem ── N : 1 ── Product
+ │
+ └── 1 : N ── Order
+                └── 1 : N ── OrderItem ── N : 1 ── Product
+```
+
+## Shopping Cart
+
+Cart operations are associated with the currently authenticated user rather than trusting a client-supplied user ID.
+
+Example:
+
+```http
+POST /api/cart/items?productId=3&quantity=2
+```
+
+The backend obtains the authenticated user's identity from the security context and verifies ownership when updating or deleting cart items.
+
+## Checkout
+
+Checkout is transactional.
+
+```text
+Authenticated User
+      |
+      v
+Find Cart
+      |
+      v
+Check Cart Is Not Empty
+      |
+      v
+Validate Stock
+      |
+      v
+Create Order
+      |
+      v
+Create OrderItems
+      |
+      v
+Snapshot Product Prices
+      |
+      v
+Calculate Total
+      |
+      v
+Deduct Stock
+      |
+      v
+Save Order
+      |
+      v
+Clear Cart
+```
+
+The checkout operation uses `@Transactional` so related database changes are handled as one transaction.
+
+## Inventory Management
+
+Stock is validated when adding products to the cart, updating cart quantities, and placing an order.
+
+During checkout:
+
+```text
+newStock = currentStock - orderedQuantity
+```
+
+When an eligible order is cancelled, stock is restored. When an ADMIN approves a return, the corresponding quantities are restored as well.
+
+## Order Lifecycle
+
+```text
+PENDING
+   |
+   v
+CONFIRMED
+   |
+   +------> CANCELLED --> Stock Restored
+   |
+   v
+SHIPPED
+   |
+   v
+DELIVERED
+   |
+   v
+RETURN_REQUESTED
+   |
+   v
+ADMIN APPROVAL
+   |
+   v
+RETURNED --> Stock Restored
+```
+
+Order statuses are represented by an enum:
+
+```text
+PENDING
+CONFIRMED
+SHIPPED
+DELIVERED
+CANCELLED
+RETURN_REQUESTED
+RETURNED
+```
+
+## Order Ownership
+
+Users cannot access or modify another user's order.
+
+```text
+JWT
+ |
+ v
+Authenticated Email
+ |
+ v
+User
+ |
+ v
+Owned Cart / Order
+```
+
+The service layer verifies ownership before operations such as viewing or cancelling an order.
+
+## DTOs
+
+The API uses DTOs instead of exposing JPA entities directly.
+
+```text
+AuthResponse
+LoginRequest
+CartResponse
+CartItemResponse
+OrderResponse
+OrderItemResponse
+```
+
+This helps avoid circular JSON relationships, limits exposed data, and separates API models from persistence models.
+
+## Validation
+
+The project uses Jakarta Bean Validation annotations including:
+
+```java
+@NotBlank
+@Email
+@NotNull
+@Positive
+@Min
+@Size
+```
+
+Business rules are additionally enforced in the service layer, including stock availability, non-empty checkout carts, valid order states, and resource ownership.
+
+## Exception Handling
+
+Centralized exception handling is implemented using `@RestControllerAdvice`.
+
+Custom exceptions include:
+
+```text
+ResourceNotFoundException
+BadRequestException
+```
+
+Example response:
+
+```json
+{
+  "timestamp": "2026-09-05T12:00:00",
+  "status": 404,
+  "error": "Resource Not Found",
+  "message": "Product not found"
+}
+```
+
+## API Endpoints
+
+### Authentication
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| POST | `/api/auth/register` | Public | Register user |
+| POST | `/api/auth/login` | Public | Login and receive JWT |
+
+### Products
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| POST | `/api/products` | ADMIN | Create product |
+| GET | `/api/products` | USER / ADMIN | Get products |
+| GET | `/api/products/{id}` | USER / ADMIN | Get product |
+| PUT | `/api/products/{id}` | ADMIN | Update product |
+| DELETE | `/api/products/{id}` | ADMIN | Delete product |
+
+### Cart
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| POST | `/api/cart/items?productId={id}&quantity={qty}` | Authenticated | Add product |
+| GET | `/api/cart` | Authenticated | Get current user's cart |
+| PUT | `/api/cart/items/{cartItemId}?quantity={qty}` | Cart owner | Update quantity |
+| DELETE | `/api/cart/items/{cartItemId}` | Cart owner | Remove item |
+
+### Orders
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| POST | `/api/orders` | Authenticated | Place order |
+| GET | `/api/orders/my-orders` | Authenticated | Get current user's orders |
+| GET | `/api/orders/{orderId}` | Order owner | Get specific order |
+| PUT | `/api/orders/{orderId}/cancel` | Order owner | Cancel eligible order |
+| PUT | `/api/orders/{orderId}/return` | Order owner | Request return |
+| PUT | `/api/orders/{orderId}/approve-return` | ADMIN | Approve return |
+
+> The return-request business logic is implemented; ensure the `/return` mapping is present in `OrderController` before publishing it as an active endpoint.
+
+## Project Structure
+
+```text
+src/main/java/com/project
+│
+├── config
 │   └── SecurityConfig.java
-├── controller/
+│
+├── controller
 │   ├── AuthController.java
 │   ├── ProductController.java
 │   ├── CartController.java
 │   └── OrderController.java
-├── entity/
+│
+├── dto
+│   ├── AuthResponse.java
+│   ├── LoginRequest.java
+│   ├── CartResponse.java
+│   ├── CartItemResponse.java
+│   ├── OrderResponse.java
+│   └── OrderItemResponse.java
+│
+├── entity
 │   ├── User.java
 │   ├── Product.java
 │   ├── Cart.java
 │   ├── CartItem.java
 │   ├── Order.java
-│   └── OrderItem.java
-├── repository/
+│   ├── OrderItem.java
+│   └── OrderStatus.java
+│
+├── exception
+│   ├── GlobalExceptionHandler.java
+│   ├── ResourceNotFoundException.java
+│   └── BadRequestException.java
+│
+├── repository
 │   ├── UserRepository.java
 │   ├── ProductRepository.java
 │   ├── CartRepository.java
+│   ├── CartItemRepository.java
 │   └── OrderRepository.java
-├── security/
-│   ├── JwtService.java
+│
+├── security
 │   ├── JwtAuthenticationFilter.java
-│   └── CustomUserDetailsService.java
-└── service/
+│   └── JwtService.java
+│
+└── service
     ├── AuthService.java
     ├── ProductService.java
     ├── CartService.java
     └── OrderService.java
 ```
 
-## 🗄️ Database Design
+## Database Configuration
 
-```text
-User
- │
- ├──► Cart
- │      └──► CartItem ──► Product
- │
- └──► Order
-        └──► OrderItem ──► Product
-```
-
-### Main Tables
-
-#### `users`
-
-```text
-id, name, email, password, role, created_at
-```
-
-#### `products`
-
-```text
-id, name, description, price, stock, created_at, updated_at
-```
-
-#### `carts`
-
-```text
-id, user_id, created_at, updated_at
-```
-
-#### `cart_items`
-
-```text
-id, cart_id, product_id, quantity
-```
-
-#### `orders`
-
-```text
-id, user_id, order_date, status, total_amount
-```
-
-#### `order_items`
-
-```text
-id, order_id, product_id, quantity, price
-```
-
-## 🔄 Order Workflow
-
-```text
-User
-  │
-  ▼
-View Cart
-  │
-  ▼
-Place Order
-  │
-  ▼
-Validate Cart
-  │
-  ▼
-Create Order
-  │
-  ▼
-Create Order Items
-  │
-  ▼
-Calculate Total
-  │
-  ▼
-Validate & Update Stock
-  │
-  ▼
-Clear Cart
-  │
-  ▼
-Order Created
-```
-
-The checkout operation is transactional so related database changes are handled atomically.
-
-```text
-Create Order
-      ↓
-Create Order Items
-      ↓
-Update Product Stock
-      ↓
-Clear Cart
-      ↓
-     COMMIT
-```
-
-## 🔑 Authentication Workflow
-
-### Registration
-
-```text
-POST /api/auth/register
-        ↓
-Validate User
-        ↓
-Hash Password using BCrypt
-        ↓
-Save User
-        ↓
-PostgreSQL
-```
-
-### Login
-
-```text
-POST /api/auth/login
-        ↓
-Authenticate Credentials
-        ↓
-UserDetailsService
-        ↓
-BCrypt Password Verification
-        ↓
-Generate JWT
-        ↓
-Return Token
-```
-
-### Protected API Request
-
-The client sends:
-
-```http
-Authorization: Bearer <JWT>
-```
-
-The JWT filter extracts and validates the token, retrieves the user, and establishes authentication in Spring Security's `SecurityContext`.
-
-## 🌐 API Endpoints
-
-### Authentication
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| POST   | `/api/auth/register` | Register a user | ❌ |
-| POST   | `/api/auth/login` | Login and receive JWT | ❌ |
-
-### Products
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/products` | Retrieve products |
-| GET | `/api/products/{id}` | Retrieve product by ID |
-| POST | `/api/products` | Create product |
-| PUT | `/api/products/{id}` | Update product |
-| DELETE | `/api/products/{id}` | Delete product |
-
-### Cart
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/cart/items` | Add product to cart |
-| GET | `/api/cart/{userId}` | Get user's cart |
-| PUT | `/api/cart/items/{cartItemId}` | Update cart quantity |
-| DELETE | `/api/cart/items/{cartItemId}` | Remove cart item |
-
-Example:
-
-```http
-POST /api/cart/items?userId=1&productId=2&quantity=2
-```
-
-### Orders
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/orders/{userId}` | Place an order |
-| GET | `/api/orders/{id}` | Retrieve an order |
-
-## 🔒 Security
-
-The application implements:
-
-- JWT-based stateless authentication
-- BCrypt password hashing
-- Spring Security authentication
-- Role-based users
-- Protected REST endpoints
-- Token signature and expiration validation
-- Primary and foreign key constraints
-- NOT NULL and validation constraints
-- Transaction management
-
-## 🧪 Testing
-
-The APIs were tested using **Postman**.
-
-Testing covered:
-
-- User registration
-- User login
-- JWT generation
-- JWT-protected endpoints
-- Product retrieval
-- Cart operations
-- Order creation
-- Invalid product handling
-- Empty cart handling
-- Authentication failures
-- Database state verification
-
-PostgreSQL `psql` was also used to inspect and verify database records during development.
-
-## ⚙️ Setup & Installation
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/anshumangahlot/Ecommerce-Project.git
-cd Ecommerce-Project
-```
-
-### 2. Configure PostgreSQL
+Create a PostgreSQL database:
 
 ```sql
 CREATE DATABASE ecommerce;
 ```
 
-### 3. Configure `application.properties`
+Example configuration:
 
 ```properties
 spring.datasource.url=jdbc:postgresql://localhost:5432/ecommerce
-spring.datasource.username=YOUR_USERNAME
-spring.datasource.password=YOUR_PASSWORD
+spring.datasource.username=YOUR_DB_USERNAME
+spring.datasource.password=YOUR_DB_PASSWORD
 
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
 ```
 
-**Do not commit real database credentials or JWT secrets to GitHub.**
+Do not commit real database passwords or JWT secrets to Git.
 
-### 4. Build
+## Running the Project
 
-```bash
-./mvnw clean install
-```
+### Prerequisites
 
-or:
+- Java 23 or compatible JDK
+- Maven
+- PostgreSQL
+- Postman (recommended for API testing)
 
-```bash
-mvn clean install
-```
-
-### 5. Run
+### Run
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-The application runs on:
+or:
+
+```bash
+mvn spring-boot:run
+```
+
+The API runs at:
 
 ```text
 http://localhost:8080
 ```
 
-## 📮 Postman Example
+## Example Authentication Flow
 
 ### Register
 
 ```http
-POST http://localhost:8080/api/auth/register
+POST /api/auth/register
 ```
 
 ```json
 {
-  "name": "Alex",
-  "email": "alex@gmail.com",
+  "name": "John Doe",
+  "email": "john@example.com",
   "password": "password123",
   "role": "USER"
 }
@@ -406,85 +455,150 @@ POST http://localhost:8080/api/auth/register
 ### Login
 
 ```http
-POST http://localhost:8080/api/auth/login
+POST /api/auth/login
 ```
 
 ```json
 {
-  "email": "alex@gmail.com",
+  "email": "john@example.com",
   "password": "password123"
 }
 ```
 
-Use the returned JWT for protected APIs:
+Use the returned JWT in protected requests:
 
 ```http
-Authorization: Bearer <your-token>
+Authorization: Bearer <JWT_TOKEN>
 ```
 
-## 🧠 Key Concepts Demonstrated
+## Recommended Postman Test Flow
 
-- Object-Oriented Programming
-- RESTful API design
+```text
+Register USER
+      ↓
+Login USER
+      ↓
+Receive JWT
+      ↓
+Login / create ADMIN
+      ↓
+Create products as ADMIN
+      ↓
+View products as USER
+      ↓
+Add product to cart
+      ↓
+View cart
+      ↓
+Update / remove cart items
+      ↓
+Place order
+      ↓
+Verify stock deduction
+      ↓
+Verify cart is cleared
+      ↓
+View order history
+      ↓
+Test order cancellation
+      ↓
+Verify stock restoration
+      ↓
+Move an order to DELIVERED
+      ↓
+Request return
+      ↓
+Approve return as ADMIN
+      ↓
+Verify RETURNED status
+      ↓
+Verify stock restoration
+```
+
+## Current Status
+
+### Completed
+
+- [x] Spring Boot REST backend
+- [x] PostgreSQL integration
+- [x] Spring Data JPA / Hibernate
+- [x] User registration
+- [x] Login
+- [x] BCrypt password hashing
+- [x] JWT authentication
+- [x] Stateless security
+- [x] USER / ADMIN roles
+- [x] Role-based authorization
+- [x] Product CRUD
+- [x] Product stock management
+- [x] Cart management
+- [x] Cart ownership validation
+- [x] DTO responses
+- [x] Bean Validation
+- [x] Global exception handling
+- [x] Transactional checkout
+- [x] Stock validation and deduction
+- [x] Purchase-time price snapshots
+- [x] Order history
+- [x] Order ownership verification
+- [x] Order cancellation
+- [x] Stock restoration after cancellation
+- [x] Return request business logic
+- [x] ADMIN return approval
+- [x] Stock restoration after approved return
+- [x] Postman testing
+
+## Future Enhancements
+
+- Swagger / OpenAPI documentation
+- JUnit and Mockito unit tests
+- MockMvc integration tests
+- Pagination and sorting
+- Product search and filtering
+- Standardized API response format
+- Redis caching
+- Database indexing
+- Optimistic locking for concurrent inventory updates
+- Docker / Docker Compose
+- GitHub Actions CI/CD
+- Spring Boot Actuator
+- Payment gateway integration
+- Refund tracking
+- Delivery timestamps
+- Return windows and return reasons
+- More complete admin order-management APIs
+
+## Interview-Relevant Concepts
+
+This project demonstrates practical experience with:
+
+- REST API design
 - Layered architecture
 - Dependency Injection
 - Spring Boot
-- Spring MVC
-- Spring Data JPA
+- Spring Security
+- JWT authentication
+- Authentication vs Authorization
+- Role-Based Access Control
+- JPA entity relationships
 - Hibernate ORM
 - PostgreSQL
-- Entity relationships
-- CRUD operations
-- Transactions
-- Authentication and authorization
-- JWT
-- BCrypt
-- Role-Based Access Control
+- DTO design
+- Bean Validation
+- Global exception handling
+- Transaction management
+- Inventory consistency
+- Order state transitions
+- Resource ownership authorization
+- Stateless authentication
 - API testing
-- Inventory management
 
-## 🔮 Future Improvements
-
-- DTO-based API responses
-- Global exception handling with `@ControllerAdvice`
-- More granular role-based authorization
-- Resource ownership validation
-- Pagination and sorting
-- Product search and filtering
-- Payment integration
-- Order history and status tracking
-- Refresh tokens
-- Redis caching
-- API rate limiting
-- Unit and integration testing
-- Audit logging
-- Docker containerization
-- CI/CD pipeline
-- Production-grade secrets management
-- Inventory concurrency control
-
-## 📌 Current Status
-
-**Core backend functionality implemented and tested.**
-
-```text
-✅ User Authentication
-✅ JWT Security
-✅ BCrypt Password Hashing
-✅ Product Management
-✅ Shopping Cart
-✅ Order Processing
-✅ PostgreSQL Persistence
-✅ Spring Data JPA
-✅ REST APIs
-✅ API Testing
-```
-
-## 👨‍💻 Author
+## Author
 
 **Anshuman Gahlot**
 
-B.Tech Computer Science Engineering  
-Symbiosis Institute of Technology, Pune
+B.Tech Computer Science Engineering
 
-**Technologies:** Java • Spring Boot • Spring Security • JWT • PostgreSQL • JPA • Hibernate • REST APIs
+## License
+
+This project is intended for educational and portfolio purposes.
